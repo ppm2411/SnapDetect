@@ -11,11 +11,10 @@ from sklearn.ensemble import RandomForestRegressor
 from concurrent.futures import ThreadPoolExecutor
 import matplotlib.pyplot as plt
 
-# Set random seed for reproducibility
 SEED = 9
 np.random.seed(SEED)
 
-# Safety checks for required files
+
 assert os.path.exists(
     "annotations/train_annotations.coco.json"
 ), "Train annotations file missing!"
@@ -24,7 +23,6 @@ assert os.path.exists(
 ), "Validation annotations file missing!"
 
 
-# Function to extract features manually
 def extract_features(image):
     image = cv2.resize(image, (128, 128))
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -78,35 +76,29 @@ def preprocess_images_concurrently(annotations, image_dir):
     return np.array(X), np.array(y)
 
 
-# Load annotations with fixed paths
 train_annotations = load_annotations("annotations/train_annotations.coco.json")
 valid_annotations = load_annotations("annotations/valid_annotations.coco.json")
 
-# Filter out images with no annotations
 train_annotations = [ann for ann in train_annotations if len(ann["annotations"]) > 0]
 valid_annotations = [ann for ann in valid_annotations if len(ann["annotations"]) > 0]
 
-# Set image directories
 train_images_dir = "BoneFractureYolo8/train/images"
 valid_images_dir = "BoneFractureYolo8/valid/images"
 
-# Prepare data
 X_train, y_train = preprocess_images_concurrently(train_annotations, train_images_dir)
 X_valid, y_valid = preprocess_images_concurrently(valid_annotations, valid_images_dir)
 
-# Reduce feature dimensionality using PCA
-pca = PCA(n_components=100)  # Choose an appropriate number of components
+pca = PCA(n_components=100)  
 X_train_reduced = pca.fit_transform(X_train)
 X_valid_reduced = pca.transform(X_valid)
 
-# Use Random Forest instead of SVM
 rf_models = []
 for i in range(4):
     rf = RandomForestRegressor(n_estimators=100, random_state=SEED)
     rf.fit(X_train_reduced, y_train[:, i])
     rf_models.append(rf)
 
-# Predict and evaluate
+
 y_pred = np.zeros_like(y_valid)
 for i, rf in enumerate(rf_models):
     y_pred[:, i] = rf.predict(X_valid_reduced)
@@ -115,7 +107,7 @@ mse = mean_squared_error(y_valid, y_pred)
 print(f"Validation MSE: {mse:.4f}")
 
 
-# IoU calculation
+
 def calculate_iou(box1, box2):
     x1, y1, w1, h1 = box1
     x2, y2, w2, h2 = box2
@@ -133,7 +125,7 @@ mean_iou = np.mean(ious)
 print(f"Mean IoU: {mean_iou:.4f}")
 
 
-# Save predictions instead of plotting
+
 def save_predictions(
     X, y_true, y_pred, images_dir, annotations, output_dir="output_predictions"
 ):
@@ -167,7 +159,7 @@ def save_predictions(
         cv2.imwrite(output_path, cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
 
 
-# Save predictions instead of plotting
+
 save_predictions(
     X_valid[:6], y_valid[:6], y_pred[:6], valid_images_dir, valid_annotations
 )
